@@ -188,8 +188,8 @@ def detectRotation(path, resizeFactor=1, maxAngle=ROT_WINDOW, outputDir="."):
     if GRAPH:
         graphImg = cv.CreateMat(thumbnail.rows, thumbnail.cols, cv.CV_8UC3)
         cv.CvtColor(thumbnail, graphImg, cv.CV_GRAY2BGR)
-    
-    print GRAPH and graphImg;
+        if DEBUG:
+            print graphImg;
     
     angle1 = houghTransform(binThumb, 1, 0.1, maxAngle, 0.0, METHOD_TMEAN, graphImg)
 
