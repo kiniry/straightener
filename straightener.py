@@ -42,11 +42,15 @@ def scan(img, pos, dir):
         pos = newPos
         dx, dy = VECTOR[dir]
         x, y = pos
+        
+        if (x < 0) or (x >= width) or (y < 0) or (y >= height):
+            return (0,height-1,0,width-1)[dir]
+        
         if (img[y,x] > THRESHOLD):
             break
         newPos = (x+dx, y+dy)
     
-    return (x if (dir == LEFT or dir == RIGHT) else y)
+    return (y,y,x,x)[dir]
     
 def findBorder(img):
     height, width = img.shape
