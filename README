@@ -1,0 +1,5 @@
+lineDetect Python extension
+Uses simple Hough transform to detect near-vertical and near-horizontal lines in an image.
+
+To install, run (as root):
+	python setup.py install
