@@ -17,7 +17,7 @@ TOP = 0
 BOTTOM = 1
 LEFT = 2
 RIGHT = 3
-THRESHOLD = 100
+THRESHOLD = 1
 
 VECTOR = ((0,-1), (0,1), (-1,0), (1,0))
 
@@ -25,6 +25,7 @@ def scan(img, pos, dir):
     diff = 0
     height, width = img.shape
     newPos = pos
+    """
     while (diff < THRESHOLD):
         pos = newPos
         dx, dy = VECTOR[dir]
@@ -35,6 +36,15 @@ def scan(img, pos, dir):
             # Something's wrong with the image
             break
         diff = img[newY,newX] - img[y,x]
+    """
+    
+    while True:
+        pos = newPos
+        dx, dy = VECTOR[dir]
+        x, y = pos
+        if (img[y,x] > THRESHOLD):
+            break
+        newPos = (x+dx, y+dy)
     
     return (x if (dir == LEFT or dir == RIGHT) else y)
     
@@ -175,6 +185,8 @@ def detectRotation(path, resizeFactor=1, maxAngle=ROT_WINDOW, outputDir="."):
         graphImg = cv.CreateMat(thumbnail.rows, thumbnail.cols, cv.CV_8UC3)
         cv.CvtColor(thumbnail, graphImg, cv.CV_GRAY2BGR)
     
+    print GRAPH and graphImg;
+    
     angle1 = houghTransform(binThumb, 1, 0.1, maxAngle, 0.0, METHOD_TMEAN, graphImg)
 
     if GRAPH:
@@ -222,13 +234,15 @@ def fixRotation(fname, angle, outName):
     
     
 def main():
+    global GRAPH, DEBUG
+    
     parser = argparse.ArgumentParser(description='Straighten a rotated image.')
 
     parser.add_argument("-o", "--output",
                         dest="output", default="",
                         help="Output filename")
     parser.add_argument("-r", "--resize-factor",
-                        dest="resize", default=5.0, type=float,
+                        dest="resize", default=2.0, type=float,
                         help="Shrinking factor")
     parser.add_argument("-m", "--max-angle",
                         dest="maxAngle", default=4.0, type=float,
