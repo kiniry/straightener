@@ -219,13 +219,12 @@ def rotateImage(image, angle):
 
     return result
 
-'''
-Given the path to the image, the estimated angle of rotation and an output
-directory, rotate the image by -angle and save the resulting image in
-outDir
-'''
-
-def fixRotation(fname, angle, outName):
+def fixRotation(fname, angle):
+    """
+    Given the path to the image, the estimated angle of rotation and an output
+    directory, rotate the image by -angle and save the resulting image in
+    outDir. Returns the unrotated image.
+    """
     img = cv.LoadImage(fname, cv.CV_LOAD_IMAGE_COLOR)
     img = rotateImage(img, -angle)
     
@@ -233,10 +232,47 @@ def fixRotation(fname, angle, outName):
     cv.CvtColor(img, grayImg, cv.CV_BGR2GRAY)
     rOff, tOff, lOff, bOff = findBorder(numpy.asarray(grayImg))
     cv.SetImageROI(img, (lOff, tOff, rOff-lOff, bOff-tOff))
-    
-    cv.SaveImage(outName, img)
-    
-    
+
+    #cv.SaveImage(outName, img)
+    return img
+
+def straighten_image(imgpath, resize, maxAngle, outputpath, imgsize=None):
+    """
+    Given an image, straighten the image (by detecting the rotation
+    offset), and save the straightened image to outpath.
+    If imgsize is given, then pad/crop the output image such that it
+    is of size imgsize.
+    Input:
+        str imgpath: path to the image.
+        float resize: Downsizing parameter for detectRotation.
+        float maxAngle: Biggest angle to search for.
+        str output: output filepath
+        tuple imgsize: (width, height) in pixels
+    """
+    angle1, angle2 = detectRotation(imgpath, resize, maxAngle, outputpath)
+    if DEBUG:
+        print "Angle1: {0}, angle2: {1}".format(angle1, angle2)
+    img = fixRotation(imgpath, angle2)
+    if imgsize:
+        img = size_image(img, imgsize)
+    cv.SaveImage(outputpath, img)
+
+def size_image(img, imgsize):
+    """
+    Given an image and an image size, add padding/cropping such that
+    the return image is of size imgsize.
+    """
+    array = numpy.asarray(img[:,:])
+    if len(array.shape) == 3:
+        out = numpy.zeros((imgsize[1], imgsize[0], 3))
+    else:
+        out = numpy.zeros((imgsize[1], imgsize[0]))
+    row_max = min(array.shape[0], out.shape[0])
+    col_max = min(array.shape[1], out.shape[1])
+    foo = array[0:row_max, 0:col_max]
+    out[0:row_max,0:col_max] = foo
+    return cv.fromarray(out)
+
 def main():
     global GRAPH, DEBUG
     
@@ -248,6 +284,10 @@ def main():
     parser.add_argument("-r", "--resize-factor",
                         dest="resize", default=2.0, type=float,
                         help="Shrinking factor")
+    parser.add_argument("--size", dest="imgsize", default=None,
+                        nargs=2,
+                        help="Make output image be of a given size \
+by padding/cropping the output image appropriately.")
     parser.add_argument("-m", "--max-angle",
                         dest="maxAngle", default=4.0, type=float,
                         help="Maximum expected angle from the vertical/horizontal (in degrees)")
@@ -263,20 +303,21 @@ def main():
     output = args.output
     resize = args.resize
     maxAngle = args.maxAngle
+    imgsize = args.imgsize
     GRAPH = args.graph
     DEBUG = args.debug
-    
+
     startTime = time.time()
     
     if (output == ""):
         name1 = os.path.split(input)[1]
         name1, ext = os.path.splitext(input)
         output = name1 + "-unrotated" + ext
+    if imgsize:
+        imgsize[0] = int(imgsize[0])
+        imgsize[1] = int(imgsize[1])
 
-    angle1, angle2 = detectRotation(input, resize, maxAngle)
-    if DEBUG:
-        print "Angle1: {0}, angle2: {1}".format(angle1, angle2)
-    fixRotation(input, angle2, output)
+    straighten_image(input, resize, maxAngle, output, imgsize=imgsize)
      
     if DEBUG:   
         print "Time Elapsed: {0}".format(time.time() - startTime)
