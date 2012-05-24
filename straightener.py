@@ -236,7 +236,7 @@ def fixRotation(fname, angle):
     #cv.SaveImage(outName, img)
     return img
 
-def straighten_image(imgpath, resize, maxAngle, outputpath, imgsize=None):
+def straighten_image(imgpath, outputpath, resize=2.0, maxAngle=4.0, imgsize=None):
     """
     Given an image, straighten the image (by detecting the rotation
     offset), and save the straightened image to outpath.
@@ -317,7 +317,7 @@ by padding/cropping the output image appropriately.")
         imgsize[0] = int(imgsize[0])
         imgsize[1] = int(imgsize[1])
 
-    straighten_image(input, resize, maxAngle, output, imgsize=imgsize)
+    straighten_image(input, output, resize=resize, maxAngle=maxAngle, imgsize=imgsize)
      
     if DEBUG:   
         print "Time Elapsed: {0}".format(time.time() - startTime)
