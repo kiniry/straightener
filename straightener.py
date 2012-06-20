@@ -1,4 +1,4 @@
-import string, cv, math, os, time, numpy, lineDetect
+import string, cv, math, os, time, numpy, lineDetect, pdb
 import argparse
 
 ROT_WINDOW = 2
@@ -262,16 +262,9 @@ def size_image(img, imgsize):
     Given an image and an image size, add padding/cropping such that
     the return image is of size imgsize.
     """
-    array = numpy.asarray(img[:,:])
-    if len(array.shape) == 3:
-        out = numpy.zeros((imgsize[1], imgsize[0], 3))
-    else:
-        out = numpy.zeros((imgsize[1], imgsize[0]))
-    row_max = min(array.shape[0], out.shape[0])
-    col_max = min(array.shape[1], out.shape[1])
-    foo = array[0:row_max, 0:col_max]
-    out[0:row_max,0:col_max] = foo
-    return cv.fromarray(out)
+    new_img = cv.CreateMat(imgsize[1], imgsize[0], cv.CV_8UC3)
+    cv.Resize(img, new_img)
+    return new_img
 
 def main():
     global GRAPH, DEBUG
