@@ -221,8 +221,15 @@ static PyObject* houghTransform(const CvMat* img, float rho, float theta,
         lineangle = angles[n];
         tuple = Py_BuildValue("(ff)", linerho, lineangle);
         if (PyList_Append(lines, tuple) == -1) {
+          Py_DECREF(tuple);
+          free(accum);
+          free(sort_buf);
+          free(tabSin);
+          free(tabCos);
+          free(angles);          
           return NULL;
         }
+        Py_DECREF(tuple);
     }
 
     free(accum);
