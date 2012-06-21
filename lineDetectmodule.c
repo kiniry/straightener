@@ -79,7 +79,12 @@ static PyObject* lineDetect_findLines(PyObject *self, PyObject *args) {
 
     result = houghTransform(imgMat, rho, theta, threshold, window, adjustment);
     free(imgMat);
-
+    /* According to this link, PyArray_Cast creates a new object:
+     *    http://docs.scipy.org/doc/numpy/reference/c-api.array.html 
+     * So, remember to decrement the refcount for imgArray so that it
+     * can be garbage collected. */
+    Py_DECREF(imgArray);
+    
     return result;
 }
 
@@ -250,7 +255,7 @@ PyMODINIT_FUNC initlineDetect(void) {
     import_array();
 
     LineDetectError = PyErr_NewException("lineDetect.error", NULL, NULL);
-    Py_INCREF(LineDetectError);
+    //Py_INCREF(LineDetectError);
     PyModule_AddObject(m, "error", LineDetectError);
 }
 
