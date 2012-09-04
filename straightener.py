@@ -167,7 +167,7 @@ to the vertical or the horizontal, respectively. If GRAPH_LINES is
 true, graph the detected lines on the image and save the resulting
 graph in outputDir.
 '''
-def detectRotation(path, resizeFactor=1, maxAngle=ROT_WINDOW, outputDir="."):    
+def detectRotation(path, resizeFactor=1, maxAngle=ROT_WINDOW, outputPath=''):    
     image = cv.LoadImage(path, cv.CV_LOAD_IMAGE_GRAYSCALE)
     
     maxAngleRad = math.radians(maxAngle)
@@ -194,8 +194,9 @@ def detectRotation(path, resizeFactor=1, maxAngle=ROT_WINDOW, outputDir="."):
     angle1 = houghTransform(binThumb, 1, 0.1, maxAngle, 0.0, METHOD_TMEAN, graphImg)
 
     if GRAPH:
-        cv.SaveImage(os.path.join(outputDir, 'binary_{0}{1}'.format(filename, ext)), binThumb)
-        cv.SaveImage(os.path.join(outputDir, 'lines_{0}{1}'.format(filename, ext)), graphImg)
+        # TODO: Maybe make separate directories for GRAPH imgs?
+        cv.SaveImage(os.path.join('.', 'binary_{0}{1}'.format(filename, ext)), binThumb)
+        cv.SaveImage(os.path.join('.', 'lines_{0}{1}'.format(filename, ext)), graphImg)
         
     # Second pass
     
@@ -206,7 +207,7 @@ def detectRotation(path, resizeFactor=1, maxAngle=ROT_WINDOW, outputDir="."):
     angle2 = houghTransform(binThumb, 1, 0.01, 0.1, angle1, METHOD_MEDIAN, graphImg)
     
     if GRAPH:
-        cv.SaveImage(os.path.join(outputDir, 'lines_pass2_{0}{1}'.format(filename, ext)), graphImg)
+        cv.SaveImage(os.path.join('.', 'lines_pass2_{0}{1}'.format(filename, ext)), graphImg)
 
     return (angle1, angle2)
 
@@ -255,6 +256,7 @@ def straighten_image(imgpath, outputpath, resize=2.0, maxAngle=4.0, imgsize=None
     img = fixRotation(imgpath, angle2)
     if imgsize:
         img = size_image_noresize(img, imgsize)
+
     cv.SaveImage(outputpath, img)
 
 def size_image_resize(img, imgsize):
@@ -356,9 +358,8 @@ by padding/cropping the output image appropriately.")
         straighten_image(input, output, resize=resize, maxAngle=maxAngle, imgsize=imgsize)
     except Exception as e:
         print "Fatal error occured while straightening:", input
-        if DEBUG:
-            traceback.print_exc()
-            print "Time Elapsed: {0}".format(time.time() - startTime)
+        traceback.print_exc()
+        print "Time Elapsed: {0}".format(time.time() - startTime)
         exit(1)
      
     if DEBUG:   
