@@ -1,5 +1,5 @@
 import sys, os, pdb, shutil, pickle, time, argparse, multiprocessing
-import math, logging
+import math, logging, traceback
 from os.path import join as pathjoin
 
 import straightener
@@ -18,7 +18,7 @@ def straighten_images_process(imgpaths, imgsdir, outdir, queue, imgsize):
         str outdir: The root directory of the output images
         obj queue: A Queue instance used for IPC. If any images fail to
                    be straightened, then a tuple will be put:
-                       (1, IMGPATH, OUTPATH)
+                       (1, IMGPATH, OUTPATH, str MSG)
         tuple imgsize: If given, the size of the output images. Should
                        be (WIDTH, HEIGHT)
     """
@@ -37,7 +37,7 @@ def straighten_images_process(imgpaths, imgsdir, outdir, queue, imgsize):
         try:
             straightener.straighten_image(imgpath, outpath_png, imgsize=imgsize)
         except Exception as e:
-            queue.put((1, imgpath, outpath))
+            queue.put((1, imgpath, outpath, traceback.format_exc()))
     queue.put(0)
     return 0
 
@@ -98,8 +98,10 @@ def spawn_jobs(imgsdir, outdir, num_imgs, queue, imgsize=None):
             num_done += 1
         else:
             # Failed to straighten this image.
-            errcode, imgpath, outpath = thing
+            errcode, imgpath, outpath, msg = thing
             print >>errfile, "{0}.) Failed to straighten: {1}.".format(num_errs, imgpath)
+            print >>errfile, "    {0}".format(msg)
+            print >>errfile, ""
             num_errs += 1
     errfile.close()
     if num_errs:
