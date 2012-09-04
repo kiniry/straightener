@@ -1,5 +1,5 @@
 import string, cv, math, os, time, numpy, lineDetect, pdb
-import argparse
+import argparse, traceback
 
 ROT_WINDOW = 2
 MIN_CROP = 20
@@ -231,6 +231,7 @@ def fixRotation(fname, angle):
     grayImg = cv.CreateMat(img.height, img.width, cv.CV_8UC1)
     cv.CvtColor(img, grayImg, cv.CV_BGR2GRAY)
     rOff, tOff, lOff, bOff = findBorder(numpy.asarray(grayImg))
+    pdb.set_trace()
     cv.SetImageROI(img, (lOff, tOff, rOff-lOff, bOff-tOff))
 
     #cv.SaveImage(outName, img)
@@ -308,8 +309,10 @@ def size_image_noresize(img, imgsize):
 
 def main():
     global GRAPH, DEBUG
-    
-    parser = argparse.ArgumentParser(description='Straighten a rotated image.')
+    usage="python straightener.py [-o OUTPATH] [-r RESIZE] [--size WIDTH HEIGHT] \
+[-m MAXANGLE] [-g] [-d] IMGPATH"
+    parser = argparse.ArgumentParser(usage=usage,
+                                     description='Straighten a rotated image.')
 
     parser.add_argument("-o", "--output",
                         dest="output", default="",
@@ -350,7 +353,14 @@ by padding/cropping the output image appropriately.")
         imgsize[0] = int(imgsize[0])
         imgsize[1] = int(imgsize[1])
 
-    straighten_image(input, output, resize=resize, maxAngle=maxAngle, imgsize=imgsize)
+    try:
+        straighten_image(input, output, resize=resize, maxAngle=maxAngle, imgsize=imgsize)
+    except Exception as e:
+        print "Fatal error occured while straightening:", input
+        if DEBUG:
+            traceback.print_exc()
+            print "Time Elapsed: {0}".format(time.time() - startTime)
+        exit(1)
      
     if DEBUG:   
         print "Time Elapsed: {0}".format(time.time() - startTime)
