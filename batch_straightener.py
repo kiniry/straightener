@@ -1,4 +1,7 @@
 import sys, os, pdb, shutil, pickle, time, argparse, multiprocessing
+import math, logging
+from os.path import join as pathjoin
+
 import straightener
 
 """
@@ -16,7 +19,8 @@ def straighten_images_process(imgpaths, imgsdir, outdir, queue, imgsize):
         obj queue: A Queue instance used for IPC. If any images fail to
                    be straightened, then a tuple will be put:
                        (1, IMGPATH, OUTPATH)
-        tuple imgsize: If given, the size of the output images.
+        tuple imgsize: If given, the size of the output images. Should
+                       be (WIDTH, HEIGHT)
     """
     imgsdir = os.path.abspath(imgsdir)
     for imgpath in imgpaths:
@@ -33,7 +37,6 @@ def straighten_images_process(imgpaths, imgsdir, outdir, queue, imgsize):
         try:
             straightener.straighten_image(imgpath, outpath_png, imgsize=imgsize)
         except Exception as e:
-            print "Bad."
             queue.put((1, imgpath, outpath))
     queue.put(0)
     return 0
@@ -76,11 +79,12 @@ def spawn_jobs(imgsdir, outdir, num_imgs, queue, imgsize=None):
     imgs_per_proc = int(math.ceil(num_imgs / n_procs))
     print 'cpu count: {0} total number of imgs: {1} imgs_per_proc: {2}'.format(n_procs, num_imgs, imgs_per_proc)
     pool = multiprocessing.Pool()
-
+    num_subprocs = 0
     for i, imgpaths in enumerate(divy_images(imgsdir, imgs_per_proc)):
         if imgpaths:
             print 'Process {0} got {1} imgs'.format(i, len(imgpaths))
-            foo = pool.apply_async(straighten_images_process, args=(imgpaths, imgsdir, outdir, None, imgsize))
+            foo = pool.apply_async(straighten_images_process, args=(imgpaths, imgsdir, outdir, queue, imgsize))
+            num_subprocs += 1
     pool.close()
     pool.join()
 
@@ -88,7 +92,7 @@ def spawn_jobs(imgsdir, outdir, num_imgs, queue, imgsize=None):
     num_done = 0
     num_errs = 0
     errfile = open('_straighten_errors.log', 'w')
-    while num_done < n_procs:
+    while num_done < num_subprocs:
         thing = queue.get()
         if thing == 0:
             num_done += 1
@@ -111,8 +115,6 @@ def start_straightening(imgsdir, outdir, num_imgs, imgsize=None):
     queue = manager.Queue()
 
     print "Spawning master process to start straightening images in", imgsdir
-    logger = multiprocessing.log_to_stderr()
-    logger.setLevel(logging.INFO)
 
     p = multiprocessing.Process(target=spawn_jobs, args=(imgsdir, outdir, num_imgs, queue, imgsize))
     p.start()
@@ -141,10 +143,10 @@ def is_image_ext(path):
                                                  '.tiff', '.tif', '.bmp')
 
 def do_main():
-    usage="python straightener.py [-o OUTPATH] [-r RESIZE] [--size WIDTH HEIGHT] \
-[-m MAXANGLE] [-g] [-d] IMGPATH"
+    usage="python batch_straightener.py [-o OUTDIR] [-r RESIZE] [--size WIDTH HEIGHT] \
+[-m MAXANGLE] [-g] [-d] IMGDIR"
     parser = argparse.ArgumentParser(usage=usage,
-                                     description='Straighten a rotated image.')
+                                     description='Straightens a set of images.')
 
     parser.add_argument("-o", "--outdir",
                         dest="outdir", default="",
@@ -180,10 +182,10 @@ by padding/cropping the output images appropriately.")
     print "...Finished Counting images: there are {0} images.".format(num_imgs)
 
     if imgsize != None:
-        imgsize = (int(imgsize[0]), int(imgsize[1]))
+        imgsize = (int(imgsize[1]), int(imgsize[0]))
 
     print "Calling the start_straightening job..."
-    start_straightening(imgsdir, outdir, num_imgs, size=imgsize)
+    start_straightening(imgsdir, outdir, num_imgs, imgsize=imgsize)
 
 if __name__ == '__main__':
     do_main()

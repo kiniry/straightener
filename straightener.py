@@ -231,7 +231,6 @@ def fixRotation(fname, angle):
     grayImg = cv.CreateMat(img.height, img.width, cv.CV_8UC1)
     cv.CvtColor(img, grayImg, cv.CV_BGR2GRAY)
     rOff, tOff, lOff, bOff = findBorder(numpy.asarray(grayImg))
-    pdb.set_trace()
     cv.SetImageROI(img, (lOff, tOff, rOff-lOff, bOff-tOff))
 
     #cv.SaveImage(outName, img)
@@ -248,7 +247,7 @@ def straighten_image(imgpath, outputpath, resize=2.0, maxAngle=4.0, imgsize=None
         float resize: Downsizing parameter for detectRotation.
         float maxAngle: Biggest angle to search for.
         str output: output filepath
-        tuple imgsize: (width, height) in pixels
+        tuple imgsize: (WIDTH, HEIGHT) in pixels
     """
     angle1, angle2 = detectRotation(imgpath, resize, maxAngle, outputpath)
     if DEBUG:
