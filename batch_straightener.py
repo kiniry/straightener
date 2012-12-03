@@ -201,4 +201,4 @@ if __name__ == '__main__':
 # 1700 2200 slo11
 # 2400 3840 santacruz
 # 1744 2878 yolo
-# 1728 2800 yolo 2012
+# 1728 2800 yolo 2012 (max size of blanks)
