@@ -8,6 +8,7 @@ BIN_COLOR = 255
 ACCUMULATOR = 2.0/3.0
 GRAPH = False
 DEBUG = False
+FILTER = False
 
 METHOD_MEAN = 0
 METHOD_MEDIAN = 1
@@ -105,9 +106,19 @@ def makeBinary(imageMat):
     cv.Threshold(imageMat, binThumb, BIN_THRESHOLD, BIN_COLOR, cv.CV_THRESH_BINARY_INV)
     return binThumb
 
+def takeDeriv(image):
+    dst = cv.CreateMat(image.rows-1, image.cols-1, cv.CV_8UC1)
+
+    cv.Xor(image[1:,1:], image[:-1,:-1], dst)
+
+    return dst
+
 def houghTransform(binaryImg, rho, theta, maxAngle, guess, method = METHOD_MEAN, graphImg = None):
     minAccumulator = int(binaryImg.width * ACCUMULATOR)
-    
+
+    if FILTER:
+        binaryImg = takeDeriv(binaryImg)
+
     binaryArray = numpy.asarray(binaryImg)
     
     lines = lineDetect.findLines(binaryArray, rho, math.radians(theta), minAccumulator, math.radians(maxAngle), math.radians(guess))
@@ -176,6 +187,7 @@ def detectRotation(path, resizeFactor=1, maxAngle=ROT_WINDOW, outputPath=''):
     imageMat = crop(image, hCrop, vCrop)
     
     thumbnail = makeThumbnail(imageMat, resizeFactor)
+
     binThumb = makeBinary(thumbnail)
     
     filename = os.path.split(path)[1]
@@ -237,7 +249,8 @@ def fixRotation(fname, angle):
     #cv.SaveImage(outName, img)
     return img
 
-def straighten_image(imgpath, outputpath, resize=2.0, maxAngle=4.0, imgsize=None):
+def straighten_image(imgpath, outputpath, resize=2.0, maxAngle=4.0, imgsize=None,
+                     debug=None, graph=None, filter=None):
     """
     Given an image, straighten the image (by detecting the rotation
     offset), and save the straightened image to outpath.
@@ -250,6 +263,10 @@ def straighten_image(imgpath, outputpath, resize=2.0, maxAngle=4.0, imgsize=None
         str output: output filepath
         tuple imgsize: (WIDTH, HEIGHT) in pixels
     """
+    global DEBUG, GRAPH, FILTER
+    if debug != None: DEBUG = debug
+    if graph != None: GRAPH = debug
+    if filter != None: FILTER = debug
     angle1, angle2 = detectRotation(imgpath, resize, maxAngle, outputpath)
     if DEBUG:
         print "Angle1: {0}, angle2: {1}".format(angle1, angle2)
@@ -311,7 +328,7 @@ def size_image_noresize(img, imgsize):
 def main():
     global GRAPH, DEBUG
     usage="python straightener.py [-o OUTPATH] [-r RESIZE] [--size WIDTH HEIGHT] \
-[-m MAXANGLE] [-g] [-d] IMGPATH"
+[-m MAXANGLE] [-g] [-d] [-f] IMGPATH"
     parser = argparse.ArgumentParser(usage=usage,
                                      description='Straighten a rotated image.')
 
@@ -328,6 +345,8 @@ by padding/cropping the output image appropriately.")
     parser.add_argument("-m", "--max-angle",
                         dest="maxAngle", default=4.0, type=float,
                         help="Maximum expected angle from the vertical/horizontal (in degrees)")
+    parser.add_argument("-f", "--filter", action="store_true", dest="filter",
+                        default=False, help="Filter the image and remove large black rectangles")
     parser.add_argument("-g", "--graph", action="store_true", dest="graph",
                       default=False, help="Graph the discovered lines")
     parser.add_argument("-d", "--debug", action="store_true", dest="debug",
@@ -343,6 +362,7 @@ by padding/cropping the output image appropriately.")
     imgsize = args.imgsize
     GRAPH = args.graph
     DEBUG = args.debug
+    FILTER = args.filter
 
     startTime = time.time()
     
