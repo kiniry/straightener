@@ -116,9 +116,6 @@ def takeDeriv(image):
 def houghTransform(binaryImg, rho, theta, maxAngle, guess, method = METHOD_MEAN, graphImg = None):
     minAccumulator = int(binaryImg.width * ACCUMULATOR)
 
-    if FILTER:
-        binaryImg = takeDeriv(binaryImg)
-
     binaryArray = numpy.asarray(binaryImg)
     
     lines = lineDetect.findLines(binaryArray, rho, math.radians(theta), minAccumulator, math.radians(maxAngle), math.radians(guess))
@@ -189,6 +186,11 @@ def detectRotation(path, resizeFactor=1, maxAngle=ROT_WINDOW, outputPath=''):
     thumbnail = makeThumbnail(imageMat, resizeFactor)
 
     binThumb = makeBinary(thumbnail)
+
+    if FILTER:
+        print 'asdf'
+        binThumb = takeDeriv(binThumb)
+    print 'ggg'
     
     filename = os.path.split(path)[1]
     filename, ext = os.path.splitext(filename)
@@ -265,8 +267,8 @@ def straighten_image(imgpath, outputpath, resize=2.0, maxAngle=4.0, imgsize=None
     """
     global DEBUG, GRAPH, FILTER
     if debug != None: DEBUG = debug
-    if graph != None: GRAPH = debug
-    if filter != None: FILTER = debug
+    if graph != None: GRAPH = graph
+    if filter != None: FILTER = filter
     angle1, angle2 = detectRotation(imgpath, resize, maxAngle, outputpath)
     if DEBUG:
         print "Angle1: {0}, angle2: {1}".format(angle1, angle2)
@@ -326,7 +328,7 @@ def size_image_noresize(img, imgsize):
         return imgFinal
 
 def main():
-    global GRAPH, DEBUG
+    global GRAPH, DEBUG, FILTER
     usage="python straightener.py [-o OUTPATH] [-r RESIZE] [--size WIDTH HEIGHT] \
 [-m MAXANGLE] [-g] [-d] [-f] IMGPATH"
     parser = argparse.ArgumentParser(usage=usage,
