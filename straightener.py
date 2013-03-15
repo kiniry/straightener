@@ -188,9 +188,7 @@ def detectRotation(path, resizeFactor=1, maxAngle=ROT_WINDOW, outputPath=''):
     binThumb = makeBinary(thumbnail)
 
     if FILTER:
-        print 'asdf'
         binThumb = takeDeriv(binThumb)
-    print 'ggg'
     
     filename = os.path.split(path)[1]
     filename, ext = os.path.splitext(filename)
