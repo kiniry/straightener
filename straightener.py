@@ -1,4 +1,4 @@
-import string, cv, math, os, time, numpy, lineDetect, pdb
+import string, cv, math, os, time, numpy, lineDetect, pdb, cv2
 import argparse, traceback
 
 ROT_WINDOW = 2
@@ -250,7 +250,8 @@ def fixRotation(fname, angle):
     return img
 
 def straighten_image(imgpath, outputpath, resize=2.0, maxAngle=4.0, imgsize=None,
-                     debug=None, graph=None, filter=None, imgsize_rescale=None):
+                     debug=None, graph=None, filter=None, imgsize_rescale=None,
+                     grayscale=False):
     """
     Given an image, straighten the image (by detecting the rotation
     offset), and save the straightened image to outpath.
@@ -263,6 +264,7 @@ def straighten_image(imgpath, outputpath, resize=2.0, maxAngle=4.0, imgsize=None
         str output: output filepath
         tuple imgsize: (WIDTH, HEIGHT) in pixels
         int imgsize_rescale: Final WIDTH, in pixels. Maintain aspect ratio.
+        bool grayscale: If True, then output images as grayscale.
     """
     global DEBUG, GRAPH, FILTER
     if debug != None: DEBUG = debug
@@ -272,62 +274,58 @@ def straighten_image(imgpath, outputpath, resize=2.0, maxAngle=4.0, imgsize=None
     if DEBUG:
         print "Angle1: {0}, angle2: {1}".format(angle1, angle2)
     img = fixRotation(imgpath, angle2)
+    img_np = numpy.asarray(img[:,:])
+
+    if grayscale and img.nChannels == 3:
+        img_gray = cv2.cvtColor(img_np, cv.CV_RGB2GRAY)
+        img = img_gray
+    else:
+        img = img_np
     if imgsize:
         img = size_image_noresize(img, imgsize)
     if imgsize_rescale:
         W_OUT = imgsize_rescale
-        H_OUT = int(round(img.height / (float(img.width) / W_OUT)))
+        H_OUT = int(round(img.shape[0] / (float(img.shape[1]) / W_OUT)))
         img = size_image_resize(img, (W_OUT, H_OUT))
-    cv.SaveImage(outputpath, img)
+    cv.SaveImage(outputpath, cv.fromarray(img))
+
+def fastResize(I,w,h):
+    Icv = cv.fromarray(I)
+    I1cv=cv.CreateMat(h, w, Icv.type)
+    if w < I.shape[1]:
+        cv.Resize(Icv,I1cv,interpolation=cv.CV_INTER_AREA)
+    else:
+        cv.Resize(Icv,I1cv,interpolation=cv.CV_INTER_CUBIC)
+    Iout = numpy.asarray(I1cv)
+    return Iout
 
 def size_image_resize(img, imgsize):
     """
     Given an image and an image size, return a new image that has been
     re-scaled to be of size IMGSIZE. 
     """
-    new_img = cv.CreateMat(imgsize[1], imgsize[0], cv.CV_8UC3)
-    cv.Resize(img, new_img)
-    return new_img
+    return fastResize(img, imgsize[0], imgsize[1])
+    #if len(img.shape) == 2:
+    #    new_img = cv.CreateMat(imgsize[1], imgsize[0], cv.CV_8UC1)
+    #else:
+    #    new_img = cv.CreateMat(imgsize[1], imgsize[0], cv.CV_8UC3)
+    #cv.Resize(img, new_img, interpolation=cv.CV_INTER_AREA)
+    #return new_img
 
 def size_image_noresize(img, imgsize):
     """
     Given IMG and IMGSIZE, add padding/crop IMG such that it has size
-    IMGSIZE.
+    IMGSIZE. IMGSIZE := (WIDTH, HEIGHT)
     """
-    # check if we need to crop out ROI
-    roiWidth = img.width
-    roiHeight = img.height
-    if (img.width > imgsize[1]):
-        roiWidth = imgsize[1]
-
-    if (img.height > imgsize[0]):
-        roiHeight = imgsize[0]
-        
-    roi = (0,0,roiWidth,roiHeight)
-    cv.SetImageROI(img,roi)
-    imgTrim=cv.CreateImage((roi[2],roi[3]),img.depth,img.nChannels)
-    cv.Copy(img,imgTrim)
-
-    # check if we need to pad
-    padSize=0
-    padSize=max(padSize,imgsize[0]-imgTrim.height)
-    padSize=max(padSize,imgsize[1]-imgTrim.width)
-
-    if padSize==0: # no padding needed
-        return imgTrim
+    if len(img.shape) == 2:
+        Iout = numpy.zeros((imgsize[1], imgsize[0]), dtype=img.dtype)
+        Iout[:min(img.shape[0], imgsize[1]), :min(img.shape[1], imgsize[0])] = img[:min(img.shape[0], imgsize[1]), :min(img.shape[1], imgsize[0])]
     else:
-        padSize = int(round((padSize+.5)/2.))
-        # copy make border 
-        imgPad=cv.CreateImage((imgTrim.width+2*padSize,
-                               imgTrim.height+2*padSize),
-                              img.depth,
-                              img.nChannels)
-        cv.CopyMakeBorder(imgTrim,imgPad,(0,0),0)
-        roi = (0,0,imgsize[1],imgsize[0])
-        cv.SetImageROI(imgPad,roi)
-        imgFinal=cv.CreateImage((roi[2],roi[3]),img.depth,img.nChannels)
-        cv.Copy(imgPad,imgFinal)
-        return imgFinal
+        Iout = numpy.zeros((imgsize[1], imgsize[0], 3), dtype=img.dtype)
+        Iout[:min(img.shape[0], imgsize[1]), :min(img.shape[1], imgsize[0]), 0] = img[:min(img.shape[0], imgsize[1]), :min(img.shape[1], imgsize[0]), 0]
+        Iout[:min(img.shape[0], imgsize[1]), :min(img.shape[1], imgsize[0]), 1] = img[:min(img.shape[0], imgsize[1]), :min(img.shape[1], imgsize[0]), 1]
+        Iout[:min(img.shape[0], imgsize[1]), :min(img.shape[1], imgsize[0]), 2] = img[:min(img.shape[0], imgsize[1]), :min(img.shape[1], imgsize[0]), 2]
+    return Iout
 
 def main():
     global GRAPH, DEBUG, FILTER
@@ -355,6 +353,8 @@ by padding/cropping the output image appropriately.")
                       default=False, help="Graph the discovered lines")
     parser.add_argument("-d", "--debug", action="store_true", dest="debug",
                       default=False, help="Print debugging info")
+    parser.add_argument("--grayscale", action="store_true",
+                        help="Save output images as grayscale (single-channel).")
     parser.add_argument("input", help="Input filename")
 
     args = parser.parse_args()
@@ -379,7 +379,7 @@ by padding/cropping the output image appropriately.")
         imgsize[1] = int(imgsize[1])
 
     try:
-        straighten_image(input, output, resize=resize, maxAngle=maxAngle, imgsize=imgsize)
+        straighten_image(input, output, resize=resize, maxAngle=maxAngle, imgsize=imgsize, grayscale=args.grayscale)
     except Exception as e:
         print "Fatal error occured while straightening:", input
         traceback.print_exc()

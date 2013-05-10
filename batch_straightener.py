@@ -10,7 +10,7 @@ A script to handle straightening multiple images.
 
 def straighten_images_process(imgpaths, imgsdir, outdir, resize, 
                               maxAngle, graph, debug, filter, queue, imgsize,
-                              imgsize_rescale):
+                              imgsize_rescale, grayscale):
     """
     A function (intended to be called from another process) that
     straightens all images in imgpaths.
@@ -25,6 +25,7 @@ def straighten_images_process(imgpaths, imgsdir, outdir, resize,
                        be (WIDTH, HEIGHT)
         int imgsize_rescale: If given, then the final width of the output
                                images, after sizing by IMGSIZE.
+        bool grayscale: If True, then save output images in grayscale.
     """
     imgsdir = os.path.abspath(imgsdir)
     for imgpath in imgpaths:
@@ -42,7 +43,7 @@ def straighten_images_process(imgpaths, imgsdir, outdir, resize,
             straightener.straighten_image(imgpath, outpath_png, 
                                           resize, maxAngle, imgsize,
                                           debug, graph, filter,
-                                          imgsize_rescale)
+                                          imgsize_rescale, grayscale=grayscale)
         except Exception as e:
             queue.put((1, imgpath, outpath, traceback.format_exc()))
     queue.put(0)
@@ -82,7 +83,7 @@ def divy_images(imgsdir, num):
                 
 def spawn_jobs(imgsdir, outdir, num_imgs, resize, maxAngle, 
                graph, debug, filter, queue, imgsize=None,
-               imgsize_rescale=None):
+               imgsize_rescale=None, grayscale=False):
     n_procs = float(multiprocessing.cpu_count())
     print 'cpu count:', n_procs
     imgs_per_proc = int(math.ceil(num_imgs / n_procs))
@@ -95,7 +96,7 @@ def spawn_jobs(imgsdir, outdir, num_imgs, resize, maxAngle,
             foo = pool.apply_async(straighten_images_process, 
                                    args=(imgpaths, imgsdir, outdir, resize, 
                                          maxAngle, graph, debug, filter, queue, imgsize,
-                                         imgsize_rescale))
+                                         imgsize_rescale, grayscale))
             num_subprocs += 1
     pool.close()
     pool.join()
@@ -122,7 +123,7 @@ def spawn_jobs(imgsdir, outdir, num_imgs, resize, maxAngle,
 
 def start_straightening(imgsdir, outdir, num_imgs, 
                         resize, maxAngle, graph, debug, filter, imgsize=None,
-                        imgsize_rescale=None):
+                        imgsize_rescale=None, grayscale=False):
     """
     Kicks off the straightening by spawning a 'master' process which
     spawns child worker processes.
@@ -134,7 +135,7 @@ def start_straightening(imgsdir, outdir, num_imgs,
 
     p = multiprocessing.Process(target=spawn_jobs, 
                                 args=(imgsdir, outdir, num_imgs, resize, 
-                                      maxAngle, graph, debug, filter, queue, imgsize, imgsize_rescale))
+                                      maxAngle, graph, debug, filter, queue, imgsize, imgsize_rescale, grayscale))
     p.start()
     p.join()
 
@@ -175,7 +176,7 @@ def do_main():
     parser.add_argument("--size", dest="imgsize", default=None,
                         nargs=2,
                         help="Make output images be of a given size \
-by padding/cropping the output images appropriately.")
+by padding/cropping the output images appropriately. (WIDTH, HEIGHT)")
     parser.add_argument("--size_rescale", dest="imgsize_rescale", default=None,
                         metavar="OUTWIDTH", type=int,
                         help="If given, then this will rescale the image (after the \
@@ -190,6 +191,8 @@ Useful if you'd like to downsize a dataset.")
                       default=False, help="Graph the discovered lines")
     parser.add_argument("-d", "--debug", action="store_true", dest="debug",
                       default=False, help="Print debugging info")
+    parser.add_argument("--grayscale", action="store_true", 
+                        help="Save output images as grayscale.")
     parser.add_argument("imgsdir", help="Input directory")
 
     args = parser.parse_args()
@@ -204,13 +207,14 @@ Useful if you'd like to downsize a dataset.")
     print "...Finished Counting images: there are {0} images.".format(num_imgs)
 
     if imgsize != None:
-        imgsize = (int(imgsize[1]), int(imgsize[0]))
+        imgsize = (int(imgsize[0]), int(imgsize[1]))
 
     print "Calling the start_straightening job..."
     start_straightening(imgsdir, outdir, num_imgs, 
                         args.resize, args.maxAngle, 
                         args.graph, args.debug, args.filter, imgsize=imgsize,
-                        imgsize_rescale=imgsize_rescale)
+                        imgsize_rescale=imgsize_rescale,
+                        grayscale=args.grayscale)
 
 if __name__ == '__main__':
     do_main()
