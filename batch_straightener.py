@@ -9,7 +9,8 @@ A script to handle straightening multiple images.
 """
 
 def straighten_images_process(imgpaths, imgsdir, outdir, resize, 
-                              maxAngle, graph, debug, filter, queue, imgsize):
+                              maxAngle, graph, debug, filter, queue, imgsize,
+                              imgsize_rescale):
     """
     A function (intended to be called from another process) that
     straightens all images in imgpaths.
@@ -22,6 +23,8 @@ def straighten_images_process(imgpaths, imgsdir, outdir, resize,
                        (1, IMGPATH, OUTPATH, str MSG)
         tuple imgsize: If given, the size of the output images. Should
                        be (WIDTH, HEIGHT)
+        int imgsize_rescale: If given, then the final width of the output
+                               images, after sizing by IMGSIZE.
     """
     imgsdir = os.path.abspath(imgsdir)
     for imgpath in imgpaths:
@@ -38,7 +41,8 @@ def straighten_images_process(imgpaths, imgsdir, outdir, resize,
         try:
             straightener.straighten_image(imgpath, outpath_png, 
                                           resize, maxAngle, imgsize,
-                                          debug, graph, filter)
+                                          debug, graph, filter,
+                                          imgsize_rescale)
         except Exception as e:
             queue.put((1, imgpath, outpath, traceback.format_exc()))
     queue.put(0)
@@ -77,7 +81,8 @@ def divy_images(imgsdir, num):
     raise StopIteration
                 
 def spawn_jobs(imgsdir, outdir, num_imgs, resize, maxAngle, 
-               graph, debug, filter, queue, imgsize=None):
+               graph, debug, filter, queue, imgsize=None,
+               imgsize_rescale=None):
     n_procs = float(multiprocessing.cpu_count())
     print 'cpu count:', n_procs
     imgs_per_proc = int(math.ceil(num_imgs / n_procs))
@@ -89,7 +94,8 @@ def spawn_jobs(imgsdir, outdir, num_imgs, resize, maxAngle,
             print 'Process {0} got {1} imgs'.format(i, len(imgpaths))
             foo = pool.apply_async(straighten_images_process, 
                                    args=(imgpaths, imgsdir, outdir, resize, 
-                                         maxAngle, graph, debug, filter, queue, imgsize))
+                                         maxAngle, graph, debug, filter, queue, imgsize,
+                                         imgsize_rescale))
             num_subprocs += 1
     pool.close()
     pool.join()
@@ -115,7 +121,8 @@ def spawn_jobs(imgsdir, outdir, num_imgs, resize, maxAngle,
         print "    More information can be found in: _straighten_errors.log"
 
 def start_straightening(imgsdir, outdir, num_imgs, 
-                        resize, maxAngle, graph, debug, filter, imgsize=None):
+                        resize, maxAngle, graph, debug, filter, imgsize=None,
+                        imgsize_rescale=None):
     """
     Kicks off the straightening by spawning a 'master' process which
     spawns child worker processes.
@@ -127,7 +134,7 @@ def start_straightening(imgsdir, outdir, num_imgs,
 
     p = multiprocessing.Process(target=spawn_jobs, 
                                 args=(imgsdir, outdir, num_imgs, resize, 
-                                      maxAngle, graph, debug, filter, queue, imgsize))
+                                      maxAngle, graph, debug, filter, queue, imgsize, imgsize_rescale))
     p.start()
     p.join()
 
@@ -169,6 +176,11 @@ def do_main():
                         nargs=2,
                         help="Make output images be of a given size \
 by padding/cropping the output images appropriately.")
+    parser.add_argument("--size_rescale", dest="imgsize_rescale", default=None,
+                        metavar="OUTWIDTH", type=int,
+                        help="If given, then this will rescale the image (after the \
+dimensions from '--size') to a final output with width OUTWIDTH. Maintains aspect ratio. \
+Useful if you'd like to downsize a dataset.")
     parser.add_argument("-m", "--max-angle",
                         dest="maxAngle", default=4.0, type=float,
                         help="Maximum expected angle from the vertical/horizontal (in degrees)")
@@ -185,6 +197,7 @@ by padding/cropping the output images appropriately.")
     imgsdir = args.imgsdir
     outdir = args.outdir
     imgsize = args.imgsize
+    imgsize_rescale = args.imgsize_rescale
 
     print "Counting images in {0}...".format(imgsdir)
     num_imgs = count_images(imgsdir)
@@ -196,7 +209,8 @@ by padding/cropping the output images appropriately.")
     print "Calling the start_straightening job..."
     start_straightening(imgsdir, outdir, num_imgs, 
                         args.resize, args.maxAngle, 
-                        args.graph, args.debug, args.filter, imgsize=imgsize)
+                        args.graph, args.debug, args.filter, imgsize=imgsize,
+                        imgsize_rescale=imgsize_rescale)
 
 if __name__ == '__main__':
     do_main()

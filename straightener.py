@@ -250,7 +250,7 @@ def fixRotation(fname, angle):
     return img
 
 def straighten_image(imgpath, outputpath, resize=2.0, maxAngle=4.0, imgsize=None,
-                     debug=None, graph=None, filter=None):
+                     debug=None, graph=None, filter=None, imgsize_rescale=None):
     """
     Given an image, straighten the image (by detecting the rotation
     offset), and save the straightened image to outpath.
@@ -262,6 +262,7 @@ def straighten_image(imgpath, outputpath, resize=2.0, maxAngle=4.0, imgsize=None
         float maxAngle: Biggest angle to search for.
         str output: output filepath
         tuple imgsize: (WIDTH, HEIGHT) in pixels
+        int imgsize_rescale: Final WIDTH, in pixels. Maintain aspect ratio.
     """
     global DEBUG, GRAPH, FILTER
     if debug != None: DEBUG = debug
@@ -273,7 +274,10 @@ def straighten_image(imgpath, outputpath, resize=2.0, maxAngle=4.0, imgsize=None
     img = fixRotation(imgpath, angle2)
     if imgsize:
         img = size_image_noresize(img, imgsize)
-
+    if imgsize_rescale:
+        W_OUT = imgsize_rescale
+        H_OUT = int(round(img.height / (float(img.width) / W_OUT)))
+        img = size_image_resize(img, (W_OUT, H_OUT))
     cv.SaveImage(outputpath, img)
 
 def size_image_resize(img, imgsize):
@@ -282,7 +286,7 @@ def size_image_resize(img, imgsize):
     re-scaled to be of size IMGSIZE. 
     """
     new_img = cv.CreateMat(imgsize[1], imgsize[0], cv.CV_8UC3)
-    cv.Resize(img, new_img)  # Resizes the image, bad!
+    cv.Resize(img, new_img)
     return new_img
 
 def size_image_noresize(img, imgsize):
